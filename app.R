@@ -38,10 +38,15 @@ ui <- fluidPage(
     sidebarLayout(
       sidebarPanel(
         selectInput(inputId = "clientes",
-                    label = "Select cliente",
+                    label = "Selecione el cliente",
                     choices = c("Todos", unique(sucursales$Cliente)),
                     selected = "Todos",
-                    multiple = FALSE)
+                    multiple = FALSE),
+        # Input: Specification of range within an interval ----
+        sliderInput(inputId = "meses",
+                    label = "Elija el mes:",
+                    min = 1, max = 12,
+                    value = c(1, 12))
       ),
       mainPanel(
         leafletOutput("map", height = 500),
@@ -55,8 +60,9 @@ ui <- fluidPage(
 # server ----
 server <- function(input, output){
   
+  # Mapa -----
   output$map <- renderLeaflet(
-    {
+    { 
       if(input$clientes == "Todos"){
       }else{
         sucursales <- sucursales[which(sucursales$Cliente == input$clientes),]
@@ -76,17 +82,19 @@ server <- function(input, output){
     m
     }
   )
+  
   # Grafico 1----
   output$plot <- renderPlotly(
-    {
-      if(input$clientes == "Todos"){
-      }else{
-        tabla_clientes <- subset(tabla_clientes, Cliente == input$clientes)
-      }
+    {if(input$clientes == "Todos"){
+    }else{
+      tabla_clientes <- tabla_clientes[which(tabla_clientes$Cliente == input$clientes),]
+    }
+      mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
+      mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
+      tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
+      
       grafico_barra <- tabla_clientes %>% ggplot(aes(Mes, Ventas, fill = Cliente)) +
         geom_bar(stat = "identity", position = "stack", show.legend = F, colour = "black") +
-        scale_y_continuous() +
-        scale_fill_brewer(palette = 1) +
         scale_y_continuous(labels = dollar)
       
       grafico_barra + theme_minimal()
@@ -96,15 +104,16 @@ server <- function(input, output){
   
   # Grafico 2 ----
   output$linePlot <- renderPlotly(
-    {
-      if(input$clientes == "Todos"){
-      }else{
-        tabla_clientes <- subset(tabla_clientes, Cliente == input$clientes)
-      }
+    {if(input$clientes == "Todos"){
+    }else{
+      tabla_clientes <- tabla_clientes[which(tabla_clientes$Cliente == input$clientes),]
+    }
+      mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
+      mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
+      tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
+      
       grafico_linha <- tabla_clientes %>% ggplot(aes(Mes, Ventas, group = Cliente, colour = Cliente)) +
         geom_line(stat = "identity", show.legend = F) +
-        #scale_y_continuous() +
-        #scale_fill_brewer(palette = 1) +
         scale_y_continuous(labels = dollar)
       
       grafico_linha + theme_minimal()
