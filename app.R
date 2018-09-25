@@ -8,12 +8,14 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(plotly)
+library(scales)
 
 # Loading Data ----
 Demo <- read.xlsx("./Demo GeoMKT Taurus_FELIPE.xlsx")
 Demo$Lat <- as.numeric(sapply(strsplit(as.character(Demo$GPS), " "), "[[", 2))
 Demo$Lon <- as.numeric(sapply(strsplit(as.character(Demo$GPS), " "), "[[", 4))
 sucursales <- st_as_sf(Demo, coords = c("Lon", "Lat"), crs = 4326)
+Demo <- Demo[-which(is.na(Demo$Mes.1)),] # removing values with NA
 data <- melt(Demo, id.vars="Cliente", measure.vars=paste0(rep("Mes.", 12), seq(1:12)), value.name="Mes")
 
 # Maxi ----
@@ -85,7 +87,7 @@ server <- function(input, output){
         geom_bar(stat = "identity", position = "stack", show.legend = F, colour = "black") +
         scale_y_continuous() +
         scale_fill_brewer(palette = 1) +
-        scale_y_continuous(breaks = c(0, 300000,600000))
+        scale_y_continuous(labels = dollar)
       
       grafico_barra + theme_minimal()
       ggplotly(grafico_barra) 
@@ -100,10 +102,10 @@ server <- function(input, output){
         tabla_clientes <- subset(tabla_clientes, Cliente == input$clientes)
       }
       grafico_linha <- tabla_clientes %>% ggplot(aes(Mes, Ventas, group = Cliente, colour = Cliente)) +
-        geom_line(stat = "identity", show.legend = F) #+
+        geom_line(stat = "identity", show.legend = F) +
         #scale_y_continuous() +
         #scale_fill_brewer(palette = 1) +
-        #scale_y_continuous(breaks = c(0, 300000,600000))
+        scale_y_continuous(labels = dollar)
       
       grafico_linha + theme_minimal()
       ggplotly(grafico_linha) 
