@@ -88,11 +88,10 @@ server <- function( input, output, session ){
     
     # store the click(s) over time
     click <- input$myMap_shape_click
-    print(paste("lcik 91:", click$id))
+    print(click$id)
     # store the polygon ids which are being clicked
     click.list$ids <- c( click.list$ids, click$id )
-    print(paste("lcik 93:", click.list))
-    print(paste("lcik 93 ids:", click.list$ids))
+    
     # filter the spatial data frame
     # by only including polygons
     # which are stored in the click.list$ids object
@@ -112,7 +111,7 @@ server <- function( input, output, session ){
         # using the data stored from the lines.of.interest object
         addPolylines( data = lines.of.interest
                       , layerId = lines.of.interest@data$id
-                      , color = "#6cb5bc"
+                      , color = "red"
                       , weight = 5
                       , opacity = 1
         ) 
