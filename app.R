@@ -34,33 +34,93 @@ tabla_clientes$Mes <- factor(tabla_clientes$Mes, levels = c("Ene","Feb","Mar","A
 tabla_clientes[is.na(tabla_clientes)] <- 0
 
 # UI ----
-ui <- fluidPage(
-    sidebarLayout(
-      sidebarPanel(
-        selectInput(inputId = "clientes",
-                    label = "Selecione el cliente",
-                    choices = c("Todos", unique(sucursales$Cliente)),
-                    selected = "Todos",
-                    multiple = FALSE),
-        # Input: Specification of range within an interval ----
-        sliderInput(inputId = "meses",
-                    label = "Elija el mes:",
-                    min = 1, max = 12,
-                    value = c(1, 12))
-      ),
-      mainPanel(
-        leafletOutput("map", height = 500),
-        plotlyOutput(outputId = "plot"),
-        plotlyOutput(outputId = "linePlot")
-      )
-    )
-  ) 
+ui <- navbarPage("Geomarketing Taurus",
+                 tabPanel("Análisis General",
+                          sidebarLayout(
+                            
+                            sidebarPanel(
+                              # Input: Specification of range within an interval ----
+                              sliderInput(inputId = "Generalmeses",
+                                          label = "Elija el mes:",
+                                          min = 1, max = 12,
+                                          value = c(1, 12))
+                              ),
+                            mainPanel(
+                              leafletOutput("Generalmap", height = 500),
+                              plotlyOutput(outputId = "Genrealplot1"),
+                              plotlyOutput(outputId = "Generalpolt2")
+                              )
+                            )
+                          )
+                 tabPanel("Análisis por cliente",
+                          sidebarLayout(
+                            
+                            sidebarPanel(
+                              # Input: Specification of range within an interval ----
+                              sliderInput(inputId = "Generalmeses",
+                                          label = "Elija el mes:",
+                                          min = 1, max = 12,
+                                          value = c(1, 12))
+                            ),
+                            mainPanel(
+                              leafletOutput("Generalmap", height = 500),
+                              plotlyOutput(outputId = "Genrealplot1"),
+                              plotlyOutput(outputId = "Generalpolt2")
+                            )
+                          )
+                 )
+                 )
 
-
+                 
 # server ----
 server <- function(input, output){
   
-  # Mapa -----
+  # Mapa General -----
+  output$Generalmap <- renderLeaflet(
+    { m <- leaflet() %>%
+        addTiles() %>%
+        addProviderTiles("OpenStreetMap.Mapnik", group = "OpenStreetMap") %>%
+        addProviderTiles("Esri.WorldImagery", group = "ESRI Aerial") %>%
+        addCircleMarkers(data=sucursales, group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "blue", clusterOptions = TRUE) %>%
+        #, popup = paste0("Spring Name: ", df.SP$SpringName, "<br> Temp_F: ", df.SP$Temp_F, "<br> Area: ", df.SP$AREA)) %>%
+        addLayersControl(
+          baseGroups = c("OpenStreetMap", "ESRI Aerial"),
+          #overlayGroups = c("Hot SPrings"),
+          options = layersControlOptions(collapsed = T))
+      
+      m
+    }
+  )
+  
+  # General Grafico 1----
+  output$Generalplot1 <- renderPlotly(
+    {mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
+      mesesEscolhidos <- mesesTotais[seq(input$Generalmeses[1], input$Generalmeses[2])]
+      tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
+      
+      grafico_barra <- tabla_clientes %>% ggplot(aes(Mes, Ventas, fill = Cliente)) +
+        geom_bar(stat = "identity", position = "stack", show.legend = F, colour = "black") +
+        scale_y_continuous(labels = dollar)
+      
+      grafico_barra + theme_minimal()
+      ggplotly(grafico_barra) 
+    }
+  )
+  # General Grafico 2----
+  output$Generalplot2 <- renderPlotly(
+    {mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
+    mesesEscolhidos <- mesesTotais[seq(input$Generalmeses[1], input$Generalmeses[2])]
+    tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
+    
+    grafico_barra <- tabla_clientes %>% ggplot(aes(Mes, Ventas, fill = Cliente)) +
+      geom_bar(stat = "identity", position = "stack", show.legend = F, colour = "black") +
+      scale_y_continuous(labels = dollar)
+    
+    grafico_barra + theme_minimal()
+    ggplotly(grafico_barra) 
+    }
+  )
+# Mapa Específico -----
   output$map <- renderLeaflet(
     { 
       if(input$clientes == "Todos"){
