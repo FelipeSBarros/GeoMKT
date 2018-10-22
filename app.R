@@ -63,8 +63,8 @@ m <- leaflet() %>%
     baseGroups = c("OpenStreetMap", "ESRI Aerial"),
     options = layersControlOptions(collapsed = T))
 getColor <- function(datos) {
-  sapply(datos$pos, function(situacion) {
-    if(situacion == TRUE) {
+  sapply(datos$pos, function(pos) {
+    if(pos == TRUE) {
       "green"
     } else {
       "red"
@@ -218,25 +218,22 @@ server <- function(input, output){
       sucursalesFilt <- merge(sucursalesFilt[,c("Cliente")], IndiceCliente[which(
         IndiceCliente$Mes == mesesTotais[input$meses[2]]), c("pos","Cliente")], by = "Cliente")
       
-      
       # Add Positivos
         if( nrow(sucursalesFilt[which(sucursalesFilt$pos==TRUE), 1])>0){
-          m <- m %>% addCircleMarkers(data = sucursalesFilt[which(sucursalesFilt$pos==TRUE), ], 
-                           group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "darkgreen", popup = paste0("<b>Cliente: </b>", sucursalesFilt$Cliente))
-          }
-        
+          #m <- m %>% addCircleMarkers(data = sucursalesFilt[which(sucursalesFilt$pos==TRUE), ], group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "darkgreen", popup = paste0("<b>Cliente: </b>", sucursalesFilt$Cliente))
+          m <- m %>% addAwesomeMarkers(data=sucursalesFilt[which(sucursalesFilt$pos==TRUE), ], icon=awesomeIcons(icon = 'ios-close', iconColor = 'black', library = 'ion', markerColor = "green"), group="Cliente", popup = paste0("<b>Cliente: </b>", sucursales$Cliente))}
+      
       # Add Negativos
-        if( nrow(sucursalesFilt[which(sucursalesFilt$pos==FALSE), 1]) > 0){
-          m <- m %>% addCircleMarkers(data = sucursalesFilt[which(sucursalesFilt$pos==FALSE), ], 
-                           group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "red", popup = paste0("<b>Cliente: </b>", sucursalesFilt$Cliente)) 
-      }
-        # Add Deptos
+      if( nrow(sucursalesFilt[which(sucursalesFilt$pos==FALSE), 1]) > 0){
+        #m <- m %>% addCircleMarkers(data = sucursalesFilt[which(sucursalesFilt$pos==FALSE), ], group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "red", popup = paste0("<b>Cliente: </b>", sucursalesFilt$Cliente)) }
+        m <- m %>% addAwesomeMarkers(data=sucursalesFilt[which(sucursalesFilt$pos==FALSE), ], icon=awesomeIcons(icon = 'ios-close', iconColor = 'black', library = 'ion', markerColor = "red"), group="Cliente", popup = paste0("<b>Cliente: </b>", sucursales$Cliente))}
+        
+      # Add Deptos
         m <- m %>%  addPolygons(data = dptoFilt, color = "#444444", weight = 1, 
-                    smoothFactor = 0.5, opacity = 0.5, fillOpacity = 0.5, fillColor = "lightgrey",
-                    options = markerOptions(interactive = FALSE)) 
-      m
-    }
-  )
+                    smoothFactor = 0.5, opacity = 0.5, fillOpacity = 0.5, fillColor = "lightgrey", options = markerOptions(interactive = FALSE))
+        m
+        }
+    )
   
   # Grafico 1----
   output$Clienteplot1 <- renderPlotly(
@@ -257,7 +254,25 @@ server <- function(input, output){
     }
   )
   
-  # Grafico 2 ----
+  # Grafico 2 Desconsiderado----
+  # output$Clienteplot2 <- renderPlotly(
+  #   {if(input$clientes == "TODOS"){
+  #   }else{
+  #     tabla_clientes <- tabla_clientes[which(tabla_clientes$Cliente == input$clientes),]
+  #   }
+  #     mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
+  #     mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
+  #     tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
+  #     
+  #     grafico_linha <- tabla_clientes %>% ggplot(aes(Mes, Ventas, group = Cliente, colour = Cliente)) +
+  #       geom_line(stat = "identity", show.legend = F) +
+  #       scale_y_continuous(labels = dollar) + stat_smooth(method=lm, level = 0, show.legend = F) 
+  #     
+  #     grafico_linha + theme_minimal()
+  #     ggplotly(grafico_linha) 
+  #   }
+  # )
+  #Grafico 2 ----
   output$Clienteplot2 <- renderPlotly(
     {if(input$clientes == "TODOS"){
     }else{
@@ -267,25 +282,8 @@ server <- function(input, output){
       mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
       tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
       
-      grafico_linha <- tabla_clientes %>% ggplot(aes(Mes, Ventas, group = Cliente, colour = Cliente)) +
-        geom_line(stat = "identity", show.legend = F) +
-        scale_y_continuous(labels = dollar)
-      
-      grafico_linha + theme_minimal()
-      ggplotly(grafico_linha) 
-    }
-  )
-  #Grafico 3 ----
-  output$Clienteplot3 <- renderPlotly(
-    {if(input$clientes == "TODOS"){
-    }else{
-      tabla_clientes <- tabla_clientes[which(tabla_clientes$Cliente == input$clientes),]
-    }
-      mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
-      mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
-      tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
-      
-      lineal <- ggplot(tabla_clientes, aes(Mes, Ventas, fill = Cliente, colour = Cliente, group = Cliente)) + geom_point(show.legend = F) + stat_smooth(method=lm, level = 0, show.legend = F) + scale_y_continuous(labels = dollar)
+      lineal <- ggplot(tabla_clientes, aes(Mes, Ventas, fill = Cliente, colour = Cliente, group = Cliente)) + geom_point(show.legend = F,  alpha = .25) + geom_line(stat = "identity", show.legend = F, alpha=.25) + 
+        stat_smooth(method=lm, level = 0, show.legend = F, alpha = 1) + scale_y_continuous(labels = dollar) 
       lineal + theme_minimal()
       ggplotly(lineal) 
     }
