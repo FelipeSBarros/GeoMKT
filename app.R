@@ -17,8 +17,13 @@ Demo <- read.xlsx("./Demo GeoMKT Taurus_FELIPE.xlsx")
 # Organizing
 Demo$Lat <- as.numeric(sapply(strsplit(as.character(Demo$GPS), " "), "[[", 2))
 Demo$Lon <- as.numeric(sapply(strsplit(as.character(Demo$GPS), " "), "[[", 4))
-sucursales <- st_as_sf(Demo, coords = c("Lon", "Lat"), crs = 4326)
-sucursales$pos <- TRUE
+#sucursales <- st_as_sf(Demo, coords = c("Lon", "Lat"), crs = 4326)
+#sucursales$pos <- TRUE
+#sucursales$Departamentos <- paste(st_intersection(sucursales,dpto)$departamen)
+#st_write(sucursales, './datos/Deptos.gpkg', 'sucursales')
+
+sucursales <- st_read('./datos/Deptos.gpkg', 'sucursales', stringsAsFactors = FALSE)
+dpto <- st_read('./datos/Deptos.gpkg', 'Deptos', stringsAsFactors = FALSE)
 Demo <- Demo[-which(is.na(Demo$Mes.1)),] # removing values with NA
 
 # Maxi ----
@@ -49,27 +54,25 @@ IndiceCliente <- tabla_clientes %>%
   mutate_if(is.logical, funs(replace(., is.na(.), "TRUE"))) %>% 
   mutate_if(is.numeric, funs(replace(., is.na(.), 0)))
 
+# Creando mapa
+m <- leaflet() %>%
+  addTiles() %>%
+  addProviderTiles("OpenStreetMap.Mapnik", group = "OpenStreetMap") %>%
+  addProviderTiles("Esri.WorldImagery", group = "ESRI Aerial") %>%
+  addLayersControl(
+    baseGroups = c("OpenStreetMap", "ESRI Aerial"),
+    options = layersControlOptions(collapsed = T))
+getColor <- function(datos) {
+  sapply(datos$pos, function(situacion) {
+    if(situacion == TRUE) {
+      "green"
+    } else {
+      "red"
+    } })
+}
 # UI ----
-ui <- navbarPage("Geomarketing Taurus",
-#Panel general ----
-                 tabPanel("Análisis General",
-                          sidebarLayout(
-                            
-                            sidebarPanel(
-                              # Input: Specification of range within an interval ----
-                              sliderInput(inputId = "Generalmeses",
-                                          label = "Mes de análisis:",
-                                          min = 1, max = 12,
-                                          value = c(1, 12))
-                            ),
-                            mainPanel(
-                              leafletOutput("Generalmap", height = 500),
-                              plotlyOutput(outputId = "Generalplot1"),
-                              plotlyOutput(outputId = "Generalplot2"),
-                              plotlyOutput(outputId = "GeneralVariacion")
-                            )
-                          )
-                 ),
+ui <- navbarPage("Taurus Geomarketing",
+
 #Panel Cliente ----
                  tabPanel("Análisis por cliente",
                           sidebarLayout(
@@ -79,6 +82,10 @@ ui <- navbarPage("Geomarketing Taurus",
                               selectInput(inputId = "clientes",
                                           label = "Elija el cliente",
                                           choices = c("TODOS", unique(sucursales$Cliente)),
+                                          multiple = FALSE),
+                              selectInput(inputId = "departamentos",
+                                          label = "Elija el Departamento",
+                                          choices = c("TODOS", unique(sucursales$Departamentos)),
                                           multiple = FALSE),
                               sliderInput(inputId = "meses",
                                           label = "Mes de análisis:",
@@ -93,7 +100,26 @@ ui <- navbarPage("Geomarketing Taurus",
                               plotlyOutput(outputId = "ClienteVariacion")
                             )
                           )
-                 )
+                 ),
+#Panel general ----
+tabPanel("Análisis General",
+         sidebarLayout(
+           
+           sidebarPanel(
+             # Input: Specification of range within an interval ----
+             sliderInput(inputId = "Generalmeses",
+                         label = "Mes de análisis:",
+                         min = 1, max = 12,
+                         value = c(1, 12))
+           ),
+           mainPanel(
+             leafletOutput("Generalmap", height = 500),
+             plotlyOutput(outputId = "Generalplot1"),
+             plotlyOutput(outputId = "Generalplot2"),
+             plotlyOutput(outputId = "GeneralVariacion")
+           )
+         )
+      )
 )
 
 
@@ -102,16 +128,26 @@ server <- function(input, output){
   
   # Mapa General -----
   output$Generalmap <- renderLeaflet(
-    { m <- leaflet() %>%
+    {
+      icons <- awesomeIcons(
+        icon = 'ios-close',
+        iconColor = 'black',
+        library = 'ion',
+        markerColor = getColor(sucursales)
+      )
+      
+      mgeneral <- leaflet() %>%
       addTiles() %>%
       addProviderTiles("OpenStreetMap.Mapnik", group = "OpenStreetMap") %>%
       addProviderTiles("Esri.WorldImagery", group = "ESRI Aerial") %>%
-      addCircleMarkers(data=sucursales, group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "blue", clusterOptions = TRUE, popup = paste0("<b>Cliente: </b>", sucursales$Cliente)) %>%
+      #addCircleMarkers(data=sucursales, group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "blue", clusterOptions = NULL, popup = paste0("<b>Cliente: </b>", sucursales$Cliente)) %>%
+        addAwesomeMarkers(data=sucursales, group="Cliente", popup = paste0("<b>Cliente: </b>", sucursales$Cliente, label=~as.character(pos))) %>%
       addLayersControl(
         baseGroups = c("OpenStreetMap", "ESRI Aerial"),
-        options = layersControlOptions(collapsed = T))
+        options = layersControlOptions(collapsed = T)) %>%
+      addPolygons(data = dpto, color = "#444444", weight = 1, smoothFactor = 0.5, opacity = 0.5, fillOpacity = 0.5, fillColor = "lightgrey", options = markerOptions(interactive = FALSE))
     
-    m
+    mgeneral
     }
   )
   
@@ -164,27 +200,40 @@ server <- function(input, output){
   # Mapa Cliente -----
   output$Clientemap <- renderLeaflet(
     { 
+      sucursalesFilt <- sucursales
+      dptoFilt <- dpto
       if(input$clientes == "TODOS"){
         
       }else{
-        sucursales <- sucursales[which(sucursales$Cliente == input$clientes),]
+        sucursalesFilt <- sucursalesFilt[which(sucursales$Cliente == input$clientes),]
+      }
+      if(input$departamentos == "TODOS"){
+        
+      }else{
+        print(input$departamentos)
+        sucursalesFilt <- sucursalesFilt[which(sucursalesFilt$Departamentos == input$departamentos),]
+        dptoFilt <- dptoFilt[which(dptoFilt$departamen == input$departamentos),]
       }
       mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
-      sucursales <- merge(sucursales[,c("Cliente")], IndiceCliente[which(
+      sucursalesFilt <- merge(sucursalesFilt[,c("Cliente")], IndiceCliente[which(
         IndiceCliente$Mes == mesesTotais[input$meses[2]]), c("pos","Cliente")], by = "Cliente")
-      m <- leaflet() %>%
-        addTiles() %>%
-        addProviderTiles("OpenStreetMap.Mapnik", group = "OpenStreetMap") %>%
-        addProviderTiles("Esri.WorldImagery", group = "ESRI Aerial") %>%
-        # Add Positivos
-        addCircleMarkers(data = sucursales[which(sucursales$pos==TRUE), ], 
-                         group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "darkgreen", clusterOptions = FALSE, popup = paste0("<b>Cliente: </b>", sucursales$Cliente)) %>%
-        addCircleMarkers(data = sucursales[which(sucursales$pos==FALSE), ], 
-                         group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "red", popup = paste0("<b>Cliente: </b>", sucursales$Cliente)) %>%
-        addLayersControl(
-          baseGroups = c("OpenStreetMap", "ESRI Aerial"),
-          options = layersControlOptions(collapsed = T))
       
+      
+      # Add Positivos
+        if( nrow(sucursalesFilt[which(sucursalesFilt$pos==TRUE), 1])>0){
+          m <- m %>% addCircleMarkers(data = sucursalesFilt[which(sucursalesFilt$pos==TRUE), ], 
+                           group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "darkgreen", popup = paste0("<b>Cliente: </b>", sucursalesFilt$Cliente))
+          }
+        
+      # Add Negativos
+        if( nrow(sucursalesFilt[which(sucursalesFilt$pos==FALSE), 1]) > 0){
+          m <- m %>% addCircleMarkers(data = sucursalesFilt[which(sucursalesFilt$pos==FALSE), ], 
+                           group="Cliente", radius = 10, opacity=1, color = "black",stroke=TRUE, fillOpacity = 0.75, weight=2, fillColor = "red", popup = paste0("<b>Cliente: </b>", sucursalesFilt$Cliente)) 
+      }
+        # Add Deptos
+        m <- m %>%  addPolygons(data = dptoFilt, color = "#444444", weight = 1, 
+                    smoothFactor = 0.5, opacity = 0.5, fillOpacity = 0.5, fillColor = "lightgrey",
+                    options = markerOptions(interactive = FALSE)) 
       m
     }
   )
