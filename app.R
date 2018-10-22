@@ -95,8 +95,6 @@ ui <- navbarPage("Taurus Geomarketing",
                             mainPanel(
                               leafletOutput("Clientemap", height = 500),
                               plotlyOutput(outputId = "Clienteplot1"),
-                              plotlyOutput(outputId = "Clienteplot2"),
-                              plotlyOutput(outputId = "Clienteplot3"),
                               plotlyOutput(outputId = "ClienteVariacion")
                             )
                           )
@@ -115,8 +113,8 @@ tabPanel("Análisis General",
            mainPanel(
              leafletOutput("Generalmap", height = 500),
              plotlyOutput(outputId = "Generalplot1"),
-             plotlyOutput(outputId = "Generalplot2"),
-             plotlyOutput(outputId = "GeneralVariacion")
+             plotlyOutput(outputId = "GeneralVariacion"),
+             plotlyOutput(outputId = "Generalplot3")
            )
          )
       )
@@ -168,8 +166,39 @@ server <- function(input, output){
     ggplotly(grafico1) 
     }
   )
-  # General Grafico 2----
-  output$Generalplot2 <- renderPlotly(
+  # Grafico 3 VARIACION ----
+  # output$GeneralVariacion <- renderPlotly(
+  #   {mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
+  #   mesesEscolhidos <- mesesTotais[seq(input$Generalmeses[1], input$Generalmeses[2])]
+  #   Indice <- Indice[Indice$Mes %in% mesesEscolhidos,]
+  #   
+  #   variacion <- ggplot(Indice, aes(Mes, Diff, fill = pos)) + 
+  #     geom_hline(yintercept = 0, color ="black") +
+  #     geom_bar(stat = "identity") +
+  #     ylab("") +
+  #     ggtitle("Variación mensual de ventas") 
+  #   ggplotly(variacion) 
+  #   }
+  #)
+  output$GeneralVariacion <- renderPlotly(
+    {if(input$clientes == "TODOS"){
+    }else{
+      tabla_clientes <- tabla_clientes[which(tabla_clientes$Cliente == input$clientes),]
+    }
+      mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
+      mesesEscolhidos <- mesesTotais[seq(input$Generalmeses[1], input$Generalmeses[2])]
+      tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
+      
+      grafico_barra <- tabla_clientes %>% ggplot(aes(Mes, Ventas, fill = Cliente)) +
+        geom_bar(stat = "identity", position = "stack", show.legend = F, colour = "black") +
+        scale_y_continuous(labels = dollar)
+      
+      grafico_barra + theme_minimal()
+      ggplotly(grafico_barra) 
+    }
+  )
+  # General Grafico 3----
+  output$Generalplot3 <- renderPlotly(
     {mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
     mesesEscolhidos <- mesesTotais[seq(input$Generalmeses[1], input$Generalmeses[2])]
     tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
@@ -180,20 +209,6 @@ server <- function(input, output){
     
     Histograma + theme_minimal()
     ggplotly(Histograma) 
-    }
-  )
-  # Grafico 3 VARIACION ----
-  output$GeneralVariacion <- renderPlotly(
-    {mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
-    mesesEscolhidos <- mesesTotais[seq(input$Generalmeses[1], input$Generalmeses[2])]
-    Indice <- Indice[Indice$Mes %in% mesesEscolhidos,]
-    
-    variacion <- ggplot(Indice, aes(Mes, Diff, fill = pos)) + 
-      geom_hline(yintercept = 0, color ="black") +
-      geom_bar(stat = "identity") +
-      ylab("") +
-      ggtitle("Variación mensual de ventas") 
-    ggplotly(variacion) 
     }
   )
   
@@ -245,50 +260,13 @@ server <- function(input, output){
       mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
       tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
       
-      grafico_barra <- tabla_clientes %>% ggplot(aes(Mes, Ventas, fill = Cliente)) +
-        geom_bar(stat = "identity", position = "stack", show.legend = F, colour = "black") +
-        scale_y_continuous(labels = dollar)
-      
-      grafico_barra + theme_minimal()
-      ggplotly(grafico_barra) 
-    }
-  )
-  
-  # Grafico 2 Desconsiderado----
-  # output$Clienteplot2 <- renderPlotly(
-  #   {if(input$clientes == "TODOS"){
-  #   }else{
-  #     tabla_clientes <- tabla_clientes[which(tabla_clientes$Cliente == input$clientes),]
-  #   }
-  #     mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
-  #     mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
-  #     tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
-  #     
-  #     grafico_linha <- tabla_clientes %>% ggplot(aes(Mes, Ventas, group = Cliente, colour = Cliente)) +
-  #       geom_line(stat = "identity", show.legend = F) +
-  #       scale_y_continuous(labels = dollar) + stat_smooth(method=lm, level = 0, show.legend = F) 
-  #     
-  #     grafico_linha + theme_minimal()
-  #     ggplotly(grafico_linha) 
-  #   }
-  # )
-  #Grafico 2 ----
-  output$Clienteplot2 <- renderPlotly(
-    {if(input$clientes == "TODOS"){
-    }else{
-      tabla_clientes <- tabla_clientes[which(tabla_clientes$Cliente == input$clientes),]
-    }
-      mesesTotais <- c("Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic")
-      mesesEscolhidos <- mesesTotais[seq(input$meses[1], input$meses[2])]
-      tabla_clientes <- tabla_clientes[tabla_clientes$Mes %in% mesesEscolhidos,]
-      
       lineal <- ggplot(tabla_clientes, aes(Mes, Ventas, fill = Cliente, colour = Cliente, group = Cliente)) + geom_point(show.legend = F,  alpha = .25) + geom_line(stat = "identity", show.legend = F, alpha=.25) + 
         stat_smooth(method=lm, level = 0, show.legend = F, alpha = 1) + scale_y_continuous(labels = dollar) 
       lineal + theme_minimal()
       ggplotly(lineal) 
     }
   )
-  # Grafico 4 VARIACION ----
+  # Grafico VARIACION ----
   output$ClienteVariacion <- renderPlotly(
     {
       if(input$clientes == "TODOS"){
@@ -302,7 +280,7 @@ server <- function(input, output){
     
     variacionCliente <- ggplot(GraficoIndiceCliente, aes(Mes, Diff, fill = pos)) + 
       geom_hline(yintercept = 0, color ="black") +
-      geom_bar(stat = "identity", position = "dodge", colour="black", show.legend = F) +
+      geom_bar(stat = "identity", position = "dodge", colour="black", show.legend = T) +
       ylab("") + 
       ggtitle("Variación mensual de ventas")
     variacionCliente <- variacionCliente + facet_grid(Cliente ~ .) 
